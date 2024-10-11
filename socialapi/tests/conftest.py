@@ -5,9 +5,8 @@ from fastapi.testclient import TestClient
 from httpx import AsyncClient
 
 os.environ["ENV_STATE"] = "test"
-
+from socialapi.database import database
 from socialapi.main import app
-from socialapi.routers.post import comment_table, post_table
 
 
 @pytest.fixture(scope="session")
@@ -22,9 +21,9 @@ def client() -> Generator:
 
 @pytest.fixture(autouse=True)
 async def db() -> AsyncGenerator:
-    post_table.clear()
-    comment_table.clear()
+    await database.connect()
     yield
+    await database.disconnect()
 
 
 @pytest.fixture()
