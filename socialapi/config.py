@@ -5,7 +5,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class BaseConfig(BaseSettings):
     ENV_STATE: Optional[str] = None
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_file="socialapi/.env", extra="ignore")
 
 
 class GlobalConfig(BaseConfig):
@@ -33,4 +33,4 @@ def get_config(env_state: str):
     return configs[env_state]()
 
 
-config = get_config(BaseConfig.ENV_STATE)
+config = get_config(BaseConfig().ENV_STATE)
