@@ -1,8 +1,10 @@
 from typing import AsyncGenerator, Generator
-
+import os
 import pytest
 from fastapi.testclient import TestClient
 from httpx import AsyncClient
+
+os.environ["ENV_STATE"] = "test"
 
 from socialapi.main import app
 from socialapi.routers.post import comment_table, post_table
