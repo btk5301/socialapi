@@ -23,6 +23,11 @@ class EmailObfuscationFilter(logging.filter):
         return True
 
 
+handlers = ["default", "rotating_file"]
+if isinstance(config, DevConfig):
+    handlers = ["default", "rotating_file", "logtail"]
+
+
 def configure_logging() -> None:
     dictConfig(
         {
@@ -68,11 +73,18 @@ def configure_logging() -> None:
                     "encoding": "utf8",
                     "filters": ["correlation_id", "email_obfuscation"],
                 },
+                "logtail": {
+                    "class": "logtail.LogtailHandler",
+                    "level": "DEBUG",
+                    "formatter": "console",
+                    "filters": ["correlation_id", "email_obfuscation"],
+                    "source_token": config.LOGTAIL_API_KEY,
+                },
             },
             "loggers": {
                 "uvicorn": {"handlers": ["default", "rotating_file"], "level": "INFO"},
                 "socialapi": {
-                    "handlers": ["default", "rotating_file"],
+                    "handlers": handlers,
                     "level": "DEBUG" if isinstance(config, DevConfig) else "INFO",
                     "propagate": False,
                 },
