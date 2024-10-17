@@ -1,8 +1,22 @@
 import logging
 
+from passlib.context import CryptContext
+
 from socialapi.database import database, user_table
 
 logger = logging.getLogger(__name__)
+
+pwd_context = CryptContext(schemes=["bcrypt"])
+
+
+def get_password_hash(password: str) -> str:
+    return pwd_context.hash(password)
+
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """hasing password twice doesn't get same password, seed is stored inside hashed password
+    which is why we need to use verify instead of hashing again and using =="""
+    return pwd_context.verify(plain_password, hashed_password)
 
 
 async def get_user(email: str):
