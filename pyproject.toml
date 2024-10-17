@@ -17,7 +17,13 @@ pydantic-settings = "^2.5.2"
 rich = "^13.9.2"
 asgi-correlation-id = "^4.3.3"
 python-json-logger = "^2.0.7"
+python-jose = "^3.3.0"
+python-multipart = "^0.0.12"
+passlib = {extras = ["bcrypt"], version = "^1.7.4"}
 
+
+[tool.poetry.group.dev.dependencies]
+pytest-mock = "^3.14.0"
 
 [build-system]
 requires = ["poetry-core"]

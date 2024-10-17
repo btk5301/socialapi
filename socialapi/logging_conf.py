@@ -11,7 +11,7 @@ def obfuscated(email: str, obfuscated_length: int) -> str:
     return characters + ("*" * (len(first) - obfuscated_length)) + "@" + last
 
 
-class EmailObfuscationFilter(logging.filter):
+class EmailObfuscationFilter(logging.Filter):
     def __init__(self, name: str = "", obfuscated_length: int = 2) -> None:
         super().__init__(name)
         self.obfuscated_length = obfuscated_length
