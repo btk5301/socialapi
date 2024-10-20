@@ -1,5 +1,7 @@
 import logging
-from fastapi import APIRouter, HTTPException, status
+from typing import Annotated
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordRequestForm
 
 from socialapi.models.user import UserIn
 from socialapi.security import (
@@ -33,7 +35,16 @@ async def register(user: UserIn):
 
 
 @router.post("/token")
-async def login(user: UserIn):
-    user = await authenticate_user(user.email, user.password)
+async def login(
+    # username: Annotated[str, Form()],
+    # password: Annotated[str, Form()],
+    # grant_type: Annotated[
+    #     str, Form()
+    # ],  # replaced old model to follow oauth bearer spec and allow authorization capability in swagger docs
+    form_data: Annotated[
+        OAuth2PasswordRequestForm, Depends()
+    ],  # faster way of doing step above
+):
+    user = await authenticate_user(form_data.username, form_data.password)
     access_token = create_access_token(user.email)
     return {"access_token": access_token, "token_type": "bearer"}
