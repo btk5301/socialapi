@@ -40,7 +40,7 @@ async def create_post(
         await oauth2_scheme(request)
     )  # Going to grab bearer token from request and pass to get_current_user function, this is how auth jwt works for every request """
 
-    data = post.dict()
+    data = {**post.dict(), "user_id": current_user.id}
     query = post_table.insert().values(data)
 
     logger.debug(query)
@@ -74,7 +74,7 @@ async def create_comment(
     post = await find_post(comment.post_id)
     if not post:
         raise HTTPException(status_code=404, detail="post not found")
-    data = comment.dict()
+    data = {**comment.dict(), "user_id": current_user.id}
     query = comments_table.insert().values(data)
 
     logger.debug(query)
