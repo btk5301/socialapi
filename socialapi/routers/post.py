@@ -1,5 +1,6 @@
 import logging
-from fastapi import APIRouter, HTTPException, Request
+from typing import Annotated
+from fastapi import APIRouter, Depends, HTTPException, Request
 
 from socialapi.database import post_table, database, comments_table
 from socialapi.models.post import (
@@ -28,11 +29,16 @@ async def find_post(post_id: int):
 
 
 @router.post("/post", response_model=UserPost, status_code=201)
-async def create_post(post: UserPostIn, request: Request):
+async def create_post(
+    post: UserPostIn,
+    current_user: Annotated[
+        User, Depends(get_current_user)
+    ],  # pass callable but don't actually call function for dep injection and value will be injected
+):
     logger.info("creating post")
-    current_user: User = await get_current_user(
+    """ current_user: User = await get_current_user(
         await oauth2_scheme(request)
-    )  # Going to grab bearer token from request and pass to get_current_user function, this is how auth jwt works for every request
+    )  # Going to grab bearer token from request and pass to get_current_user function, this is how auth jwt works for every request """
 
     data = post.dict()
     query = post_table.insert().values(data)
@@ -55,10 +61,15 @@ async def get_all_posts():
 
 
 @router.post("/comment", response_model=Comment, status_code=201)
-async def create_comment(comment: CommentIn, request: Request):
+async def create_comment(
+    comment: CommentIn,
+    current_user: Annotated[
+        User, Depends(get_current_user)
+    ],  # pass callable but don't actually call function for dep injection and value will be injected
+):
     logger.info("Creating comment")
 
-    current_user: User = await get_current_user(await oauth2_scheme(request))
+    """ current_user: User = await get_current_user(await oauth2_scheme(request)) no longer needed to due dep injection """
 
     post = await find_post(comment.post_id)
     if not post:
