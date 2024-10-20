@@ -1,5 +1,5 @@
 import logging
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 
 from socialapi.database import post_table, database, comments_table
 from socialapi.models.post import (
@@ -9,6 +9,8 @@ from socialapi.models.post import (
     UserPostIn,
     UserPostWithComments,
 )
+from socialapi.models.user import User
+from socialapi.security import get_current_user, oauth2_scheme
 
 router = APIRouter()
 
@@ -26,8 +28,11 @@ async def find_post(post_id: int):
 
 
 @router.post("/post", response_model=UserPost, status_code=201)
-async def create_post(post: UserPostIn):
+async def create_post(post: UserPostIn, request: Request):
     logger.info("creating post")
+    current_user: User = await get_current_user(
+        await oauth2_scheme(request)
+    )  # Going to grab bearer token from request and pass to get_current_user function, this is how auth jwt works for every request
 
     data = post.dict()
     query = post_table.insert().values(data)
@@ -50,8 +55,10 @@ async def get_all_posts():
 
 
 @router.post("/comment", response_model=Comment, status_code=201)
-async def create_comment(comment: CommentIn):
+async def create_comment(comment: CommentIn, request: Request):
     logger.info("Creating comment")
+
+    current_user: User = await get_current_user(await oauth2_scheme(request))
 
     post = await find_post(comment.post_id)
     if not post:

@@ -12,6 +12,9 @@ logger = logging.getLogger(__name__)
 
 SECRET_KEY = "6754e1fcb5f9b69e88d7b14e3f036460e89b54fdab026b547d132ee819d4fc22"
 ALGORITHM = "HS256"
+oauth2_scheme = OAuth2PasswordBearer(
+    tokenUrl="token"
+)  # populates the automated documentation for fastapi and also grabs the token from request if called as a function
 pwd_context = CryptContext(schemes=["bcrypt"])
 
 credentials_exception = HTTPException(
