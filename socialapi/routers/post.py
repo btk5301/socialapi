@@ -1,14 +1,20 @@
 import logging
+from enum import Enum
 from typing import Annotated
+
+import sqlalchemy
 from fastapi import APIRouter, Depends, HTTPException, Request
 
-from socialapi.database import post_table, database, comments_table
+from socialapi.database import post_table, like_table, database, comments_table
 from socialapi.models.post import (
     Comment,
     CommentIn,
+    PostLike,
+    PostLikeIn,
     UserPost,
     UserPostIn,
     UserPostWithComments,
+    UserPostWithLikes,
 )
 from socialapi.models.user import User
 from socialapi.security import get_current_user, oauth2_scheme
@@ -17,11 +23,24 @@ router = APIRouter()
 
 logger = logging.getLogger(__name__)
 
+select_post_and_likes = (
+    sqlalchemy.select(
+        post_table,  # all columns in the table
+        sqlalchemy.func.count(like_table.c.id).label("likes"),
+    )
+    .select_from(post_table.outerjoin(like_table))  # which table to pull data from
+    .group_by(
+        post_table.c.id
+    )  # shrink to a single row per post but still can count on things that are hidden
+)  # partial or extracted query that can be extended with where clauses
+
 
 async def find_post(post_id: int):
     logger.info(f"Finding post with id {post_id}")
 
-    query = post_table.select().where(post_table.c.id == post_id)
+    query = post_table.select().where(
+        post_table.c.id == post_id
+    )  # shorthand for sqlalchemy.select(post_table).select_from(post_table)
 
     logger.debug(query)
 
@@ -49,11 +68,30 @@ async def create_post(
     return {**data, "id": last_record_id}
 
 
-@router.get("/post", response_model=list[UserPost])
-async def get_all_posts():
+# when having a set of predefined options then use enum
+# can change string in the future and not have to change code and only these options
+class PostSorting(str, Enum):
+    new = "new"
+    old = "old"
+    most_likes = "most_likes"
+
+
+@router.get("/post", response_model=list[UserPostWithLikes])
+async def get_all_posts(
+    sorting: PostSorting = PostSorting.new,
+):  # http://api.com/post?sorting=most_likes fastapi knows it will be url param and will validate
     logger.info("Getting all posts")
 
-    query = post_table.select()
+    # query = post_table.select()
+
+    if sorting == PostSorting.new:
+        query = select_post_and_likes.order_by(
+            post_table.c.id.desc()
+        )  # can call desc directly on column object
+    elif sorting == PostSorting.old:
+        query = select_post_and_likes.order_by(post_table.c.id.asc())
+    elif sorting == PostSorting.most_likes:
+        query = select_post_and_likes.order_by(sqlalchemy.desc("likes"))
 
     logger.debug(query)
 
@@ -98,7 +136,13 @@ async def get_comments_on_post(post_id: int):
 async def get_post_with_comments(post_id: int):
     logger.info("Getting post and its comments")
 
-    post = await find_post(post_id)
+    # post = await find_post(post_id)
+
+    query = select_post_and_likes.where(post_table.c.id == post_id)
+
+    logger.debug(query)
+
+    post = await database.fetch_one(query)
 
     if not post:
         raise HTTPException(status_code=404, detail="post not found")
@@ -106,3 +150,23 @@ async def get_post_with_comments(post_id: int):
         "post": post,
         "comments": await get_comments_on_post(post_id),
     }
+
+
+@router.post("/like", response_model=PostLike, status_code=201)
+async def like_post(
+    like: PostLikeIn, current_user: Annotated[User, Depends(get_current_user)]
+):
+    logger.info("Liking post")
+
+    post = await find_post(like.post_id)
+
+    if not post:
+        raise HTTPException(status_code=404, detail="post not found")
+
+    data = {**like.dict(), "user_id": current_user.id}
+    query = like_table.insert().values(data)
+
+    logger.debug(query)
+
+    last_record_id = await database.execute(query)
+    return {**data, "id": last_record_id}
