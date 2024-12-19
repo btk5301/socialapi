@@ -1,8 +1,9 @@
 from typing import AsyncGenerator, Generator
+from unittest.mock import AsyncMock, Mock
 import os
 import pytest
 from fastapi.testclient import TestClient
-from httpx import AsyncClient
+from httpx import AsyncClient, Request, Response
 
 os.environ["ENV_STATE"] = "test"
 from socialapi.database import database, user_table
@@ -66,3 +67,16 @@ async def logged_in_token(async_client: AsyncClient, confirmed_user: dict) -> st
         },
     )  # extra fields for registered user but will be stripped away, change from json= to data= for x-www-form-urlencoded format
     return response.json()["access_token"]
+
+
+# For sending emails, we want to mock this since we don't actually want to send emails
+@pytest.fixture(autouse=True)
+def mock_httpx_client(mocker):
+    mocked_client = mocker.patch("socialapi.tasks.httpx.AsyncClient")
+
+    mocked_async_client = Mock()
+    response = Response(status_code=200, content="", request=Request("POST", "//"))
+    mocked_async_client.post = AsyncMock(return_value=response)
+    mocked_client.return_value.__aenter__.return_value = mocked_async_client
+
+    return mocked_async_client
