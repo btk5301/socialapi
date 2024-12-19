@@ -1,12 +1,14 @@
 import logging
 from typing import Annotated
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordRequestForm
 
 from socialapi.models.user import UserIn
 from socialapi.security import (
     authenticate_user,
     create_access_token,
+    create_confirmation_token,
+    get_subject_for_token_type,
     get_user,
     get_password_hash,
 )
@@ -17,7 +19,7 @@ router = APIRouter()
 
 
 @router.post("/register", status_code=201)
-async def register(user: UserIn):
+async def register(user: UserIn, request: Request):
     if await get_user(user.email):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,  # just an enum, can use status class or number only
@@ -31,7 +33,12 @@ async def register(user: UserIn):
 
     await database.execute(query)
 
-    return {"detail": "User created."}
+    return {
+        "detail": "User created. Please confirm your email.",
+        "confirmation_url": request.url_for(
+            "confirm_email", token=create_confirmation_token(user.email)
+        ),  # url for creates a url for a given endpoint
+    }
 
 
 @router.post("/token")
@@ -48,3 +55,17 @@ async def login(
     user = await authenticate_user(form_data.username, form_data.password)
     access_token = create_access_token(user.email)
     return {"access_token": access_token, "token_type": "bearer"}
+
+
+# get request since browsers make get request when user opens link in email
+@router.get("/confirm/{token}")
+async def confirm_email(token: str):
+    email = get_subject_for_token_type(token, "confirmation")
+    query = (
+        user_table.update().where(user_table.c.email == email).values(confirmed=True)
+    )
+
+    logger.debug(query)
+
+    await database.execute(query)
+    return {"detail": "user confirmed"}
